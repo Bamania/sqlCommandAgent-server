@@ -1,0 +1,57 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Customer information with unclear column names
+model CustInfo {
+  cid   Int      @id @default(autoincrement())
+  nm    String
+  em    String
+  rgn   String?
+  sgmt  String
+  jn_dt DateTime
+  act   Boolean  @default(true)
+  trHd  TrHd[] // Relation to orders
+
+  @@map("cust_info")
+}
+
+// Products with unclear column names
+model Prd {
+  pid  Int     @id @default(autoincrement())
+  ttl  String
+  ctgr String
+  c_p  Decimal @db.Decimal(10, 2)
+  r_p  Decimal @db.Decimal(10, 2)
+  stk  Int
+  act  Boolean @default(true)
+
+  @@map("prd")
+}
+
+// Order headers with unclear table and column names
+model TrHd {
+  oid    Int      @id @default(autoincrement())
+  cid    Int
+  o_dt   DateTime
+  sts    String
+  ttl    Decimal  @db.Decimal(12, 2)
+  py_mtd String
+
+  // Relation to customer
+  customer CustInfo @relation(fields: [cid], references: [cid])
+
+  @@map("tr_hd")
+}
