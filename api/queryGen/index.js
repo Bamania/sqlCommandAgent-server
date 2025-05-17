@@ -1,10 +1,9 @@
 import express from "express";
 import { GoogleGenAI } from "@google/genai";
 import dotenv from "dotenv";
-import { PrismaClient } from '../../generated/prisma/index.js'
+import prisma from '../../lib/prisma.js';
 import fetchAllTableData from "./readTable.js";
 
-const prisma = new PrismaClient();
 const queryRoute = express.Router();
 dotenv.config();
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });

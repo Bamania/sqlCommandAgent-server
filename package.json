@@ -1,12 +1,15 @@
 {
   "name": "server",
   "version": "1.0.0",
-  "main": "index.js",
+  "main": "server.js",
   "type": "module",
   "scripts": {
     "seed": "ts-node --esm index.ts",
     "start": "node server.js",
     "dev": "nodemon server.js",
+    "build": "npm run postinstall",
+    "postinstall": "prisma generate",
+    "vercel-build": "prisma generate && prisma migrate deploy",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "",
@@ -27,5 +30,8 @@
     "cors": "^2.8.5",
     "dotenv": "^16.5.0",
     "express": "^5.1.0"
+  },
+  "engines": {
+    "node": ">=18.x"
   }
 }
