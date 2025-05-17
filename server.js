@@ -14,8 +14,11 @@ const PORT = process.env.PORT || 5000;
 // Configure CORS for Vercel deployment
 app.use(cors({
   origin: process.env.NODE_ENV === 'production' 
-    ? [/\.vercel\.app$/, /localhost/] // Allow any Vercel subdomain plus localhost for development
-    : '*'
+    ? ['https://sql-command-agent.vercel.app', /\.vercel\.app$/, /localhost/] // Allow your frontend domain plus any Vercel subdomain
+    : '*',
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
 }));
 app.use(express.json()); 
 
@@ -23,6 +26,7 @@ app.use(express.json());
 app.get('/', (req, res) => {
   res.json({ status: 'Server is running' });
 });
+
 
 // Mount the query router under a specific path prefix
 app.use("/api", queryRouter);
