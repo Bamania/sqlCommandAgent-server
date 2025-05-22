@@ -26,8 +26,29 @@ queryRoute.post("/query", async (req, res) => {
       contents: `
 # SQL Query Generator Assistant
 
-## Context
-You are an AI assistant specialized in translating natural language business questions into executable SQL queries for a specific database schema.
+## IMPORTANT: SCOPE VALIDATION FIRST
+Before generating any SQL, you MUST determine if the user's question is relevant to the business database and data analysis. 
+
+### VALID QUESTIONS include:
+- Questions about customers, products, transactions, orders, sales
+- Data analysis requests (summaries, counts, averages, trends)  
+- Business insights and reporting queries
+- Filtering, sorting, or aggregating database information
+- Questions that can be answered using the available tables (cust_info, prd, tr_hd)
+
+### INVALID QUESTIONS include:
+- General knowledge questions unrelated to the database
+- Personal conversations, greetings, or casual chat
+- Technical questions not related to this specific database
+- Requests for information not contained in the database
+- Questions about topics outside of business/sales/customer data
+- Requests to modify, delete, or alter database structure
+- Questions about external systems, APIs, or other databases
+
+## RESPONSE PROTOCOL:
+1. **First, evaluate if the question is relevant to the database and business analysis**
+2. **If IRRELEVANT**: Return the "out_of_scope" response format immediately
+3. **If RELEVANT**: Proceed with SQL generation
 
 ## User Question
 "${userQuery}"
@@ -90,15 +111,9 @@ Always apply these transformations in your SQL queries to prevent serialization 
 4. **Boolean Fields:**
    - Convert: CASE WHEN act THEN 'true' ELSE 'false' END AS act
 
-## INSTRUCTIONS:
-1. Analyze the user's question carefully
-2. Examine the database schema and current data
-3. Generate appropriate SQL query/queries to answer the question
-4. ALWAYS apply the data type handling rules to ALL relevant columns
-5. Return ONLY a valid JSON object with your SQL commands
+## OUTPUT FORMATS:
 
-## Output Format (STRICT)
-Return ONLY a valid JSON object with the following structure:
+### For RELEVANT database questions:
 \`\`\`json
 {
   "sqlCommands": [
@@ -108,7 +123,22 @@ Return ONLY a valid JSON object with the following structure:
 }
 \`\`\`
 
-## Examples of Properly Formatted Queries:
+### For IRRELEVANT/OUT-OF-SCOPE questions:
+\`\`\`json
+{
+  "out_of_scope": true,
+  "message": "I can only help with questions related to your business database (customers, products, transactions, and sales analysis). Please ask a question about your data that I can answer using the available customer, product, or transaction information."
+}
+\`\`\`
+
+## INSTRUCTIONS:
+1. **FIRST**: Determine if the question is relevant to the database and business analysis
+2. **IF IRRELEVANT**: Return the out_of_scope response immediately  
+3. **IF RELEVANT**: Analyze the user's question carefully, examine the database schema and current data, generate appropriate SQL query/queries
+4. **ALWAYS** apply the data type handling rules to ALL relevant columns
+5. Return ONLY a valid JSON object
+
+## Examples of Properly Formatted SQL Queries (for relevant questions):
 
 1. Get top 5 products by price:
 \`\`\`sql
@@ -127,27 +157,27 @@ SELECT CAST(oid AS TEXT) AS oid, CAST(cid AS TEXT) AS cid, TO_CHAR(o_dt, 'YYYY-M
 `,
     });
 
-    // Parse the response to get SQL commands
+    // Parse the response to get SQL commands or out-of-scope message
     const responseText = response.text;
     
     // Extract the JSON part from the response
     const jsonMatch = responseText.match(/```json\s*([\s\S]*?)\s*```/) || 
-                     responseText.match(/{[\s\S]*"sqlCommands"[\s\S]*}/);
+                     responseText.match(/{[\s\S]*}/);
                      
     if (!jsonMatch) {
       throw new Error("Could not extract valid JSON from AI response");
     }
     
-    let sqlCommandsJson;
+    let responseJson;
     try {
       // Try to parse the extracted JSON
-      sqlCommandsJson = JSON.parse(jsonMatch[0].replace(/```json|```/g, '').trim());
+      responseJson = JSON.parse(jsonMatch[0].replace(/```json|```/g, '').trim());
     } catch (e) {
       try {
         // If that fails, look for just the JSON object anywhere in the response
-        const jsonObjectMatch = responseText.match(/{[\s\S]*"sqlCommands"[\s\S]*}/);
+        const jsonObjectMatch = responseText.match(/{[\s\S]*}/);
         if (jsonObjectMatch) {
-          sqlCommandsJson = JSON.parse(jsonObjectMatch[0]);
+          responseJson = JSON.parse(jsonObjectMatch[0]);
         } else {
           throw new Error("Invalid JSON format in AI response");
         }
@@ -156,17 +186,26 @@ SELECT CAST(oid AS TEXT) AS oid, CAST(cid AS TEXT) AS cid, TO_CHAR(o_dt, 'YYYY-M
       }
     }
     
-    if (!sqlCommandsJson || !Array.isArray(sqlCommandsJson.sqlCommands)) {
+    // Check if the question is out of scope
+    if (responseJson.out_of_scope) {
+      return res.status(400).json({
+        message: responseJson.message || "This question is outside the scope of the database query system.",
+        out_of_scope: true
+      });
+    }
+    
+    // Validate that we have SQL commands for in-scope questions
+    if (!responseJson || !Array.isArray(responseJson.sqlCommands)) {
       throw new Error("AI response did not contain valid SQL commands array");
     }
     
-    console.log("Generated SQL commands:", sqlCommandsJson);
+    console.log("Generated SQL commands:", responseJson);
     
     // Execute each SQL command using Prisma's raw query
     let finalResult = null;
     let executedCommands = [];
     
-    for (const sqlCommand of sqlCommandsJson.sqlCommands) {
+    for (const sqlCommand of responseJson.sqlCommands) {
       try {
         // Execute the raw SQL directly on the database
         const result = await prisma.$queryRawUnsafe(sqlCommand);
