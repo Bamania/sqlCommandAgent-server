@@ -125,10 +125,10 @@ Always apply these transformations in your SQL queries to prevent serialization 
 
 ### For IRRELEVANT/OUT-OF-SCOPE questions:
 \`\`\`json
-{
-  "out_of_scope": true,
-  "message": "I can only help with questions related to your business database (customers, products, transactions, and sales analysis). Please ask a question about your data that I can answer using the available customer, product, or transaction information."
-}
+"sqlCommands": [
+    "message;"
+    
+  ]
 \`\`\`
 
 ## INSTRUCTIONS:
